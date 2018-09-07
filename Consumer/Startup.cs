@@ -23,8 +23,14 @@ namespace Consumer
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+
+
             services.AddHttpClient<IRestClient, RestClient>()
-                    .AddPolicyHandler(GetRetryPolicy());
+                    .AddPolicyHandler((request) =>
+                    {
+                        return GetRetryPolicy();
+                    })
+                    .AddHttpMessageHandler(() => new RandomAuthorization());
         }
 
         static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
