@@ -23,18 +23,23 @@ namespace Consumer
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
-            services.AddMemoryCache();
-            services.AddSingleton<ITokenStorage, TokenStorage>();
-            services.AddHttpClient<IRestClient, RestClient>()
-                    .AddPolicyHandler((sp, request) =>
-                    {
-                        var storage = sp.GetService<ITokenStorage>();
-                        var token = storage.Get();
-                        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("basic", token);
 
-                        var restClient = sp.GetService<IRestClient>();
-                        return restClient.GetRetryPolicy();
-                    });
+
+            services.AddHttpClient<IRestClient, RestClient>()
+                    .AddPolicyHandler((request) =>
+                    {
+                        return GetRetryPolicy();
+                    })
+                    .AddHttpMessageHandler(() => new RandomAuthorization());
+        }
+
+        static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
+        {
+            return HttpPolicyExtensions
+                .HandleTransientHttpError()
+                .OrResult(msg => msg.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                .WaitAndRetryAsync(2, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2,
+                                                                            retryAttempt)));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
