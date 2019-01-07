@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Polly;
 using Polly.Extensions.Http;
+using Polly.Timeout;
 
 namespace Consumer
 {
@@ -28,12 +29,9 @@ namespace Consumer
             services.AddTransient<TokenAuthorization>();
 
             services.AddHttpClient<IRestClient, RestClient>()
-                    .AddPolicyHandler((sp, equest) =>
-                    {
-                        var restClient = sp.GetService<IRestClient>();
-                        return restClient.GetRetryPolicy();
-                    })
-                    .AddHttpMessageHandler<TokenAuthorization>();
+                .AddPolicyHandler(Policy.Handle<TimeoutRejectedException>().OrResult<HttpResponseMessage>((message) => false).WaitAndRetryAsync(RestClient.SleepDurations))
+                .AddPolicyHandler(Policy.TimeoutAsync<HttpResponseMessage>(5))
+                .AddTransientHttpErrorPolicy((builder) => builder.WaitAndRetryAsync(RestClient.SleepDurations));
         }
 
         static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
@@ -52,12 +50,6 @@ namespace Consumer
             {
                 app.UseDeveloperExceptionPage();
             }
-            else
-            {
-                app.UseHsts();
-            }
-
-            app.UseHttpsRedirection();
             app.UseMvc();
         }
     }

@@ -7,6 +7,7 @@ namespace Consumer
     public interface IRestClient
     {
         Task<string> GetValues();
+        Task<string> GetEndpoint(string endpoint);
         IAsyncPolicy<HttpResponseMessage> GetRetryPolicy();
     }
 }
